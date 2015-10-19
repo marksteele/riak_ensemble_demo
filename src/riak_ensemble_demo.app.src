@@ -1,0 +1,13 @@
+{application, riak_ensemble_demo,
+ [
+  {description, ""},
+  {vsn, "git"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  lager
+                 ]},
+  {mod, { riak_ensemble_demo_app, []}},
+  {env, [{data_root,"/tmp/riak_ensemble_demo"}]}
+ ]}.
