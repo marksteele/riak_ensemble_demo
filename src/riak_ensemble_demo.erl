@@ -1,8 +1,6 @@
 -module(riak_ensemble_demo).
 
 -export([
-         join/1,
-         leave/0,
          cluster_status/0,
          read/1,
          read_object/1,
@@ -54,54 +52,6 @@ write_once(Key,Value) ->
     Error ->
       {error, Error}
   end.
-
-join(Node) ->
-  case riak_ensemble_manager:join(Node, node()) of
-    ok ->
-      ok;
-    remote_not_enabled ->
-      {error, "Ensemble not enabled on node"};
-    Error ->
-      {error, Error}
-  end.
-
-leave() ->
-  RootLeader = riak_ensemble_manager:rleader_pid(),
-  case riak_ensemble_peer:update_members(RootLeader, [{del, {root, node()}}], 10000) of
-    ok ->
-      case wait_for_root_leave(30) of
-        ok ->
-          NewRootLeader = riak_ensemble_manager:rleader_pid(),
-          case riak_ensemble_manager:remove(node(NewRootLeader), node()) of
-            ok ->
-              ok;
-            Error ->
-              Error
-          end;
-        Error ->
-          Error
-      end;
-    Error ->
-      Error
-  end.
-
-wait_for_root_leave(Timeout) ->
-  wait_for_root_leave(0, Timeout).
-
-wait_for_root_leave(RetryCount, RetryLimit) when RetryCount =:= RetryLimit ->
-  {error, timeout_waiting_to_leave_root_ensemble};
-wait_for_root_leave(RetryCount, RetryLimit) ->
-  case in_root_ensemble(node()) of
-    true ->
-      timer:sleep(1000),
-      wait_for_root_leave(RetryCount + 1, RetryLimit);
-    false ->
-      ok
-  end.
-
-in_root_ensemble(Node) ->
-  RootNodes = [N || {root, N} <- riak_ensemble_manager:get_members(root)],
-  lists:member(Node, RootNodes).
 
 cluster_status() ->
   case riak_ensemble_manager:enabled() of

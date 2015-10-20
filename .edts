@@ -1,0 +1,4 @@
+:name "riak_ensemble_demo-edts"
+:node-sname "riak_ensemble_demo-edts"
+:lib-dirs '("lib" "deps" "test" "apps")
+:app-include-dirs '("priv" "include")

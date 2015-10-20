@@ -50,20 +50,15 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-  RestartStrategy = one_for_one,
-  MaxRestarts = 10,
-  MaxSecondsBetweenRestarts = 30,
   {ok, DataRoot} = application:get_env(riak_ensemble_demo,data_root),
-  SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-  Restart = permanent,
-  Shutdown = 20000,
-  Type = supervisor,
+  Ensemble = {riak_ensemble_sup, {riak_ensemble_sup, start_link, [DataRoot ++ atom_to_list(node())]},
+            permanent, 20000, supervisor, [riak_ensemble_sup]},
 
-  Ensemble = {riak_ensemble_sup, {riak_ensemble_sup, start_link, [DataRoot]},
-            Restart, Shutdown, Type, [riak_ensemble_sup]},
+  ClusterWatcher = {riak_ensemble_demo_cluster, {riak_ensemble_demo_cluster, start_link, []},
+            permanent, 20000, worker, [riak_ensemble_demo_cluster]},
 
-  {ok, {SupFlags, [Ensemble]}}.
+  {ok, {{one_for_one, 10, 30}, [Ensemble,ClusterWatcher]}}.
 
 %%%===================================================================
 %%% Internal functions

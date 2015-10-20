@@ -9,5 +9,8 @@
                   lager
                  ]},
   {mod, { riak_ensemble_demo_app, []}},
-  {env, [{data_root,"/tmp/riak_ensemble_demo"}]}
+  {env, [
+         {data_root,"/tmp/riak_ensemble_demo"},
+         {nodes,['node1@127.0.0.1','node2@127.0.0.1','node3@127.0.0.1']}
+        ]}
  ]}.
