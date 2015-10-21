@@ -141,52 +141,30 @@ tick(State=#state{nodes=Nodes}) ->
   State.
 
 maybe_bootstrap_ensembles(Nodes) ->
-  lager:info("Checking cluster status"),
   case riak_ensemble_manager:enabled() of
     false ->
-      lager:info("Ensemble not enabled..."),
       OnlineNodes = online_nodes(Nodes),
-      lager:info("Nodes online: ~p",[OnlineNodes]),
       QuorumNum = quorum_num(Nodes),
       EnabledNodes = find_enabled_node(OnlineNodes),
-      case EnabledNodes of
-        [] ->
-          HaveNodes = false;
-        _ ->
-          HaveNodes = true
-      end,
-      case length(OnlineNodes) >= QuorumNum of
-        true ->
-          HaveQuorum = true;
-        false ->
-          HaveQuorum = false
-      end,
 
       if
-        HaveNodes =:= false andalso HaveQuorum =:= true ->
-          Ret = global:trans({ensemble_bootstrap,self()},
-                             fun() ->
-                                 try
-                                   lager:info("Not running anywhere, enabling"),
-                                   riak_ensemble_manager:enable(),
-                                   lager:info("Waiting for cluster to be stable"),
-                                   wait_stable(),
-                                   lager:info("Done"),
-                                   ok
-                                 catch
-                                   E:Err ->
-                                     lager:info("Error thrown ~p: ~p",[E,Err]),
-                                     error
-                                 end
-                             end,
-                             OnlineNodes,0),
-          lager:info("Trx: ~p",[Ret]);
-        HaveNodes =:= true ->
+        (EnabledNodes =:= []) and (length(OnlineNodes) >= QuorumNum) ->
+          global:trans({ensemble_bootstrap,self()},
+                       fun() ->
+                           try
+                             riak_ensemble_manager:enable(),
+                             wait_stable(),
+                             ok
+                           catch
+                             _:_ ->
+                               error
+                           end
+                       end,
+                       OnlineNodes,0);
+        EnabledNodes =/= [] ->
           Running = hd(EnabledNodes),
-          lager:info("Running somewhere, trying to join"),
-          %% Join existing ensemble
           join_cluster(Running);
-        true  ->
+        true ->
           ok
       end;
     true ->
@@ -227,7 +205,7 @@ check_stable() ->
       case riak_ensemble_peer:stable_views(root, 1000) of
         {ok, true} ->
           true;
-        _Other ->
+        _ ->
           false
       end;
     false ->
@@ -245,10 +223,8 @@ find_enabled_node(Nodes) ->
 join_cluster(X) ->
   case riak_ensemble_manager:join(X,node()) of
     ok ->
-      lager:info("Joined ensemble"),
       ok;
-    Error ->
-      lager:info("Error joining ~p: ~p",[Running,Error]),
+    _ ->
       wait_stable(),
       join_cluster(X)
   end.
