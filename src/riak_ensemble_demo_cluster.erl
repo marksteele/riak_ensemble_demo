@@ -53,6 +53,7 @@ start_link() ->
 init([]) ->
   {ok, NodeList} = application:get_env(riak_ensemble_demo, nodes),
   schedule_tick(),
+  %% TODO: Link to riak_ensemble_sup?
   {ok, #state{nodes=NodeList}}.
 
 %%--------------------------------------------------------------------
@@ -98,9 +99,9 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(tick, State) ->
-  _ = tick(State),
+  State2 = tick(State),
   schedule_tick(),
-  {noreply, State};
+  {noreply, State2};
 
 handle_info(_Info, State) ->
   {noreply, State}.
@@ -162,8 +163,7 @@ maybe_bootstrap_ensembles(Nodes) ->
                        end,
                        OnlineNodes,0);
         EnabledNodes =/= [] ->
-          Running = hd(EnabledNodes),
-          join_cluster(Running);
+          join_cluster(EnabledNodes);
         true ->
           ok
       end;
@@ -220,11 +220,15 @@ find_enabled_node(Nodes) ->
     Nodes
    ).
 
-join_cluster(X) ->
-  case riak_ensemble_manager:join(X,node()) of
+join_cluster([H|_T]) ->
+  case riak_ensemble_manager:join(H,node()) of
     ok ->
+      wait_stable(),
+      riak_ensemble_peer:update_members(
+        riak_ensemble_manager:get_leader_pid(root),
+        [{add,{root,node()}}],
+        5000),
       ok;
     _ ->
-      wait_stable(),
-      join_cluster(X)
+      join_cluster([H])
   end.
